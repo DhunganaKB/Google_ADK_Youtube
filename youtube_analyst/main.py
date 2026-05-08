@@ -3,6 +3,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from google.adk.artifacts import FileArtifactService
@@ -14,6 +15,13 @@ from .agent import root_agent
 from .config import config
 
 app = FastAPI(title="YouTube Analyst API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Setup ADK services
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

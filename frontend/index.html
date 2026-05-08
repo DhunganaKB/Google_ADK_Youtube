@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Analyst</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #ff0000;
+      --dark:   #0f0f0f;
+      --surface:#1a1a1a;
+      --panel:  #242424;
+      --border: #333;
+      --text:   #e8e8e8;
+      --muted:  #888;
+      --user-bg:#2a2a2a;
+      --bot-bg: #1e2a1e;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    header .logo { font-size: 22px; }
+    header h1   { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+    header h1 span { color: var(--red); }
+    header .pill {
+      margin-left: auto;
+      font-size: 11px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: var(--muted);
+    }
+    header .pill b { color: #4caf50; }
+
+    /* ── Layout ─────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────── */
+    aside {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      flex-shrink: 0;
+    }
+    aside h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .field input {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--red); }
+
+    .new-session-btn {
+      margin-top: auto;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all .15s;
+    }
+    .new-session-btn:hover { border-color: var(--red); color: var(--text); }
+
+    /* ── Chat area ───────────────────────────────── */
+    .chat-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 6px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .welcome {
+      text-align: center;
+      color: var(--muted);
+      margin: auto;
+      padding: 40px 20px;
+    }
+    .welcome .icon { font-size: 48px; margin-bottom: 12px; }
+    .welcome p { font-size: 14px; line-height: 1.6; max-width: 340px; }
+
+    /* ── Message bubbles ─────────────────────────── */
+    .msg {
+      display: flex;
+      gap: 10px;
+      max-width: 780px;
+      animation: fadeUp .2s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .msg.user  { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.agent { align-self: flex-start; }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .msg.user  .avatar { background: var(--red); }
+    .msg.agent .avatar { background: #1a3a1a; border: 1px solid #2e5a2e; }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: calc(100% - 44px);
+      word-break: break-word;
+    }
+    .msg.user  .bubble { background: var(--user-bg); border-bottom-right-radius: 4px; }
+    .msg.agent .bubble { background: var(--bot-bg);  border-bottom-left-radius: 4px; border: 1px solid #2a3d2a; }
+
+    /* Markdown styling inside agent bubbles */
+    .bubble h1,.bubble h2,.bubble h3 { margin: 10px 0 6px; color: #b8e8b8; }
+    .bubble p   { margin-bottom: 8px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble ul,.bubble ol { padding-left: 20px; margin-bottom: 8px; }
+    .bubble li  { margin-bottom: 4px; }
+    .bubble a   { color: #66bb6a; text-decoration: none; }
+    .bubble a:hover { text-decoration: underline; }
+    .bubble table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+    .bubble th  { background: #1a3a1a; padding: 6px 10px; text-align: left; border: 1px solid #2e5a2e; }
+    .bubble td  { padding: 6px 10px; border: 1px solid #253d25; }
+    .bubble tr:nth-child(even) td { background: #1e2e1e; }
+    .bubble code { background: #111; padding: 2px 5px; border-radius: 4px; font-size: 12px; color: #a5d6a7; }
+    .bubble pre  { background: #111; padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
+    .bubble pre code { background: none; padding: 0; }
+    .bubble strong { color: #c8e6c9; }
+
+    /* ── Typing indicator ────────────────────────── */
+    .typing .bubble { background: var(--bot-bg); border: 1px solid #2a3d2a; }
+    .dots { display: flex; gap: 5px; padding: 4px 0; }
+    .dots span {
+      width: 7px; height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: dot 1.2s infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot {
+      0%,60%,100% { transform: translateY(0); opacity:.4; }
+      30%          { transform: translateY(-6px); opacity:1; }
+    }
+
+    /* ── Input bar ───────────────────────────────── */
+    .input-bar {
+      padding: 16px 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    #msgInput {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      min-height: 48px;
+      max-height: 140px;
+      line-height: 1.5;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    #msgInput:focus { border-color: var(--red); }
+    #msgInput::placeholder { color: var(--muted); }
+
+    #sendBtn {
+      background: var(--red);
+      border: none;
+      border-radius: 10px;
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity .15s, transform .1s;
+    }
+    #sendBtn:hover   { opacity: .85; }
+    #sendBtn:active  { transform: scale(.95); }
+    #sendBtn:disabled { opacity: .4; cursor: not-allowed; }
+    #sendBtn svg { width: 20px; height: 20px; fill: white; }
+
+    /* ── Error toast ─────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #c62828;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 999;
+      animation: fadeUp .2s ease;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎬</div>
+  <h1><span>YouTube</span> Analyst</h1>
+  <div class="pill">Powered by <b>Gemini</b> on Vertex AI</div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div>
+      <h2>Session Config</h2>
+    </div>
+
+    <div class="field">
+      <label>User ID</label>
+      <input id="userId" type="text" value="dhungana" placeholder="your-user-id" />
+    </div>
+
+    <div class="field">
+      <label>Session ID</label>
+      <input id="sessionId" type="text" value="123456" placeholder="session-id" />
+    </div>
+
+    <button class="new-session-btn" onclick="newSession()">⟳ New Session</button>
+  </aside>
+
+  <!-- ── Chat ── -->
+  <div class="chat-wrap">
+    <div id="messages">
+      <div class="welcome" id="welcome">
+        <div class="icon">🎬</div>
+        <p>Ask me about YouTube videos, channels, trending content, sentiment analysis, and more.</p>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <textarea
+        id="msgInput"
+        placeholder="Ask about YouTube videos, channels, trends…"
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button id="sendBtn" onclick="send()" title="Send">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const BACKEND = 'https://youtube-analyst-320438000827.us-central1.run.app';
+
+  marked.setOptions({ breaks: true, gfm: true });
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  }
+
+  function newSession() {
+    const id = Date.now().toString();
+    document.getElementById('sessionId').value = id;
+    document.getElementById('messages').innerHTML =
+      '<div class="welcome" id="welcome"><div class="icon">🎬</div><p>New session started. Ask me anything about YouTube.</p></div>';
+  }
+
+  function appendMsg(role, text) {
+    const welcome = document.getElementById('welcome');
+    if (welcome) welcome.remove();
+
+    const wrap = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+
+    const avatar = role === 'user' ? '👤' : '🤖';
+    const content = role === 'agent'
+      ? marked.parse(text)
+      : text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    div.innerHTML = `
+      <div class="avatar">${avatar}</div>
+      <div class="bubble">${content}</div>
+    `;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const welcome = document.getElementById('welcome');
+    if (welcome) welcome.remove();
+
+    const wrap = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg agent typing';
+    div.id = 'typing';
+    div.innerHTML = `
+      <div class="avatar">🤖</div>
+      <div class="bubble"><div class="dots"><span></span><span></span><span></span></div></div>
+    `;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  async function send() {
+    const input   = document.getElementById('msgInput');
+    const btn     = document.getElementById('sendBtn');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const userId    = document.getElementById('userId').value.trim()    || 'user';
+    const sessionId = document.getElementById('sessionId').value.trim() || String(Date.now());
+
+    input.value = '';
+    input.style.height = 'auto';
+    btn.disabled = true;
+
+    appendMsg('user', message);
+    showTyping();
+
+    try {
+      const res = await fetch(`${BACKEND}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, user_id: userId, session_id: sessionId })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      removeTyping();
+      appendMsg('agent', data.response);
+
+      // Keep session_id in sync with what backend used
+      if (data.session_id) {
+        document.getElementById('sessionId').value = data.session_id;
+      }
+    } catch (err) {
+      removeTyping();
+      showToast('Error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+</script>
+</body>
+</html>
