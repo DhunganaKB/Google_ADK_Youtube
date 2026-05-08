@@ -85,7 +85,8 @@ async def health():
 
 def start():
     """Start the FastAPI server."""
-    uvicorn.run("youtube_analyst.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("youtube_analyst.main:app", host="0.0.0.0", port=port, reload=True)
 
 if __name__ == "__main__":
     start()

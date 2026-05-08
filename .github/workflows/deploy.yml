@@ -1,0 +1,82 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SERVICE_NAME: youtube-analyst
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/youtube-analyst/app
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ── 2. Authenticate to GCP ───────────────────────────────────────────────
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # ── 3. Set up gcloud CLI ─────────────────────────────────────────────────
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # ── 4. Configure Docker to push to Artifact Registry ─────────────────────
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      # ── 5. Build Docker image (tagged with git SHA + latest) ─────────────────
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag ${{ env.IMAGE }}:${{ github.sha }} \
+            --tag ${{ env.IMAGE }}:latest \
+            .
+
+      # ── 6. Push both tags to Artifact Registry ───────────────────────────────
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+
+      # ── 7. Deploy to Cloud Run ────────────────────────────────────────────────
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --platform managed \
+            --service-account airbnb-rag-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --cpu 2 \
+            --timeout 300 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
+            --set-env-vars "GOOGLE_CLOUD_LOCATION=global" \
+            --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=1" \
+            --set-env-vars "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}"
+
+      # ── 8. Print the live service URL ────────────────────────────────────────
+      - name: Print service URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format "value(status.url)")
+          echo "Service deployed at: $URL"
+          echo "service_url=$URL" >> $GITHUB_OUTPUT
