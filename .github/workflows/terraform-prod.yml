@@ -1,0 +1,136 @@
+name: Terraform – Provision Prod Infrastructure
+
+# Triggers:
+#   - Push to main that changes terraform files → plan + (approval) apply
+#   - Pull request targeting main              → plan only (shown as PR comment)
+#   - Manual trigger from GitHub Actions UI    → plan + (approval) apply
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+
+env:
+  TF_VERSION:  "1.7.5"
+  WORKING_DIR: terraform/environments/prod
+
+jobs:
+  # ── Job 1: Plan ─────────────────────────────────────────────────────────────
+  # Runs on every trigger. No approval needed — just shows what WOULD change.
+  # On a pull request the plan is posted as a comment so reviewers can read it.
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # Terraform SA key has project-level admin roles in prod-487713
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.PROD_TF_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Downloads the google provider plugin and connects to the GCS backend
+      - name: Terraform Init
+        run: terraform init
+
+      # Fails if any file is not formatted — enforces consistent style
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      # Checks syntax and internal consistency (e.g. missing required fields)
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Computes the diff between current state and desired state.
+      # -out=tfplan saves the plan for the apply job.
+      # tee plan.txt saves human-readable output for the PR comment.
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -no-color 2>&1 | tee plan.txt
+
+      # Save the binary plan + text output so the apply job can use them
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-prod
+          path: |
+            ${{ env.WORKING_DIR }}/tfplan
+            ${{ env.WORKING_DIR }}/plan.txt
+          retention-days: 5
+
+      # Post the plan output as a PR comment so reviewers see what will change
+      - name: Post plan summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ env.WORKING_DIR }}/plan.txt', 'utf8');
+            const maxLen = 60000;
+            const body = plan.length > maxLen
+              ? plan.substring(0, maxLen) + '\n\n...output truncated'
+              : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🏗️ Terraform Plan – prod\n\`\`\`hcl\n${body}\n\`\`\``
+            });
+
+  # ── Job 2: Apply ────────────────────────────────────────────────────────────
+  # Only runs on pushes to main (not PRs).
+  # The `environment: production` line is the HUMAN APPROVAL GATE.
+  # GitHub will pause here and notify the required reviewers configured on
+  # the "production" environment in repo Settings → Environments.
+  apply:
+    name: Terraform Apply  ← requires approval
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: production   # ← pauses and waits for a human to click Approve
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.PROD_TF_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      # Apply the exact same plan that was reviewed above.
+      # -auto-approve skips the interactive yes/no prompt (approval already done
+      # via the GitHub Environment protection rule above).
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Print outputs
+        run: terraform output
