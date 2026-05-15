@@ -6,14 +6,14 @@
 #
 resource "google_project_service" "apis" {
   for_each = toset([
-    "run.googleapis.com",                    # Cloud Run
-    "artifactregistry.googleapis.com",        # Artifact Registry (Docker images)
-    "firestore.googleapis.com",              # Firestore (session storage)
-    "aiplatform.googleapis.com",             # Vertex AI / Gemini
-    "youtube.googleapis.com",                # YouTube Data API v3
-    "iam.googleapis.com",                    # IAM (service accounts, roles)
-    "cloudresourcemanager.googleapis.com",   # Resource Manager (needed by Terraform)
-    "secretmanager.googleapis.com",          # Secret Manager (API keys at runtime)
+    "run.googleapis.com",                  # Cloud Run
+    "artifactregistry.googleapis.com",     # Artifact Registry (Docker images)
+    "firestore.googleapis.com",            # Firestore (session storage)
+    "aiplatform.googleapis.com",           # Vertex AI / Gemini
+    "youtube.googleapis.com",              # YouTube Data API v3
+    "iam.googleapis.com",                  # IAM (service accounts, roles)
+    "cloudresourcemanager.googleapis.com", # Resource Manager (needed by Terraform)
+    "secretmanager.googleapis.com",        # Secret Manager (API keys at runtime)
   ])
 
   project            = var.project_id
