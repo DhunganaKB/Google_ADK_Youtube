@@ -26,7 +26,7 @@ if _env_file.exists():
             _k, _v = _line.split("=", 1)
             os.environ.setdefault(_k.strip(), _v.strip())
 
-import google.auth
+import google.auth  # noqa: E402 — must come after .env is loaded into os.environ
 
 # Initialize environment for Vertex AI if not already set
 try:
