@@ -1,0 +1,54 @@
+name: Build (uv)
+
+# This is a REUSABLE workflow.
+# It is not triggered directly — other workflows call it via `uses:`.
+# Any repo can import it with:
+#   uses: DhunganaKB/Google_ADK_Youtube/.github/workflows/build.yml@main
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        type: string
+        default: "3.13"
+      working-directory:
+        description: "Directory containing pyproject.toml"
+        type: string
+        default: "."
+
+jobs:
+  build:
+    name: Build (uv)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ── 2. Python ──────────────────────────────────────────────────────────
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      # ── 3. Install uv ──────────────────────────────────────────────────────
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      # ── 4. Install all dependencies (prod + dev) ───────────────────────────
+      # --frozen: fail if uv.lock is out of sync with pyproject.toml
+      # This catches cases where someone updated pyproject.toml but forgot
+      # to run `uv lock` to update the lockfile.
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      # ── 5. Verify the package is importable ────────────────────────────────
+      # A quick sanity check — if this fails, something is structurally broken
+      # (missing __init__.py, bad import, syntax error at module level, etc.)
+      - name: Verify package imports
+        run: uv run python -c "import youtube_analyst; print('Package import OK')"

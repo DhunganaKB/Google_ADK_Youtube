@@ -1,0 +1,74 @@
+name: Test (pytest)
+
+# This is a REUSABLE workflow.
+# It is not triggered directly — other workflows call it via `uses:`.
+# Any repo can import it with:
+#   uses: DhunganaKB/Google_ADK_Youtube/.github/workflows/test.yml@main
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        type: string
+        default: "3.13"
+      working-directory:
+        description: "Directory containing pyproject.toml"
+        type: string
+        default: "."
+      test-path:
+        description: "Path to test files (e.g. tests/unit for unit only)"
+        type: string
+        default: "tests/unit"   # integration tests need live GCP — run separately
+
+jobs:
+  test:
+    name: Test (pytest)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ── 2. Python ──────────────────────────────────────────────────────────
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      # ── 3. Install uv ──────────────────────────────────────────────────────
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      # ── 4. Install all dependencies ────────────────────────────────────────
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      # ── 5. Run unit tests with coverage ───────────────────────────────────
+      # -v: verbose output (show each test name)
+      # --tb=short: short traceback on failure (easier to read)
+      # --cov: measure code coverage
+      # --cov-report=term-missing: show which lines are not covered
+      # -m "not slow and not infra_ready": skip tests that need cloud infra
+      - name: Run tests
+        run: |
+          uv run pytest ${{ inputs.test-path }} \
+            -v \
+            --tb=short \
+            --cov=youtube_analyst \
+            --cov-report=term-missing \
+            -m "not slow and not infra_ready"
+
+      # ── 6. Upload coverage report as artifact ─────────────────────────────
+      # Useful for tracking coverage trends over time
+      - name: Upload coverage report
+        if: always()   # upload even if tests fail — useful for debugging
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage
+          retention-days: 7
