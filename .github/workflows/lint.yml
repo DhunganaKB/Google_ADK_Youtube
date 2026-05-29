@@ -25,6 +25,6 @@ jobs:
     uses: DhunganaKB/math-package-tutorial/.github/workflows/lint_test.yaml@main
     with:
       source_path:       "youtube_analyst"
-      requirements_path: "requirements.txt"
+      requirements_path: "requirements-ci.txt"
       tests_path:        "tests/unit"
       semgrep_rules:     "p/python p/owasp-top-ten"

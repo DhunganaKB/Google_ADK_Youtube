@@ -1,0 +1,17 @@
+# ── CI-only requirements ──────────────────────────────────────────────────────
+# Used by .github/workflows/lint.yml via the math-package-tutorial reusable
+# workflow. Contains only what lint, test, and security scans need.
+# Generated from pyproject.toml [dependency-groups] dev section.
+
+# ── Linting ───────────────────────────────────────────────────────────────────
+ruff>=0.11.5                  # linter + formatter (ruff check, ruff format)
+
+# ── Unit Testing ──────────────────────────────────────────────────────────────
+pytest>=8.3.5                 # test runner
+pytest-asyncio>=0.23.7        # async test support (agent uses async functions)
+pytest-cov>=4.0.0             # coverage measurement
+coverage>=7.0.0               # coverage reporting
+
+# ── Security Scanning ─────────────────────────────────────────────────────────
+bandit>=1.9.4                 # static security analysis (finds common vulnerabilities)
+pip-audit>=2.10.0             # dependency vulnerability scan (checks CVEs)
