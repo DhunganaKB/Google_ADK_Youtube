@@ -23,6 +23,9 @@ on:
 jobs:
   lint-test-security:
     uses: DhunganaKB/math-package-tutorial/.github/workflows/lint_test.yaml@main
+    permissions:
+      contents: read        # read source code
+      pull-requests: write  # post ruff findings as PR comment
     with:
       source_path:       "youtube_analyst"
       requirements_path: "requirements-ci.txt"
