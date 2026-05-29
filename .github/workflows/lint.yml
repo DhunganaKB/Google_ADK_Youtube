@@ -28,6 +28,6 @@ jobs:
       pull-requests: write  # post ruff findings as PR comment
     with:
       source_path:       "youtube_analyst"
-      requirements_path: "requirements-ci.txt"
+      requirements_path: "requirements.txt"
       tests_path:        "tests/unit"
       semgrep_rules:     "p/python p/owasp-top-ten"
