@@ -1,22 +1,30 @@
 name: Lint (ruff)
 
-# This workflow delegates entirely to the shared reusable workflow in
-# math-package-tutorial, which runs:
-#   - lint    (ruff check)
-#   - test    (pytest)
-#   - pip-audit (dependency vulnerability scan)
-#   - security (bandit + semgrep)
-#
-# Called by ci.yml via:
-#   uses: ./.github/workflows/lint.yml
+# Runs independently on every push/PR that touches source code.
+# Delegates entirely to the shared reusable workflow in math-package-tutorial
+# which runs: ruff, pytest, pip-audit, bandit, and semgrep.
 on:
-  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - 'youtube_analyst/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'youtube_analyst/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+  workflow_dispatch:
 
 jobs:
   lint-test-security:
     uses: DhunganaKB/math-package-tutorial/.github/workflows/lint_test.yaml@main
     with:
-      source_path:      "youtube_analyst"
+      source_path:       "youtube_analyst"
       requirements_path: "requirements.txt"
       tests_path:        "tests/unit"
       semgrep_rules:     "p/python p/owasp-top-ten"
