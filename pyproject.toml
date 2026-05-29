@@ -49,6 +49,8 @@ dev = [
     "agent-starter-pack>=0.32.0",
     "basedpyright>=1.31.3",
     "pytest-cov>=4.0.0",
+    "bandit>=1.9.4",
+    "pip-audit>=2.10.0",
 ]
 
 [tool.agent_packs]
