@@ -59,5 +59,23 @@ class Config(BaseSettings):
     YOUTUBE_AGENT_MAX_OUTPUT_TOKENS: int = 8000
     VISUALIZATION_AGENT_MAX_OUTPUT_TOKENS: int = 30000
 
+    # ── Langfuse Observability ────────────────────────────────────────────────
+    # Get keys from: https://us.cloud.langfuse.com → Settings → API Keys
+    # Set in .env for local dev, K8s Secret for production.
+    LANGFUSE_PUBLIC_KEY: str = Field(
+        default="", description="Langfuse public key for tracing"
+    )
+    LANGFUSE_SECRET_KEY: str = Field(
+        default="", description="Langfuse secret key for tracing"
+    )
+    LANGFUSE_HOST: str = Field(
+        default="https://us.cloud.langfuse.com",
+        description="Langfuse host URL (US cloud by default)",
+    )
+    LANGFUSE_ENABLED: bool = Field(
+        default=True,
+        description="Set to False to disable all tracing (e.g. in CI/testing)",
+    )
+
 
 config = Config()

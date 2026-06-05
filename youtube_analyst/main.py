@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from google.adk.artifacts import FileArtifactService
 from google.adk.runners import Runner
 from .common.firestore_session_service import FirestoreSessionService
+from .common.tracer import tracer
 from google.genai import types
 
 from .agent import root_agent
@@ -55,6 +56,20 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+    # Open a Langfuse trace for this request.
+    # If tracing is disabled (missing keys or LANGFUSE_ENABLED=false),
+    # start_trace() returns None and all trace.* calls below are no-ops.
+    trace = tracer.start_trace(
+        name="chat-request",
+        input={"message": request.message},
+        metadata={
+            "user_id": request.user_id,
+            "session_id": request.session_id,
+            "app": config.app_name,
+        },
+        tags=["youtube-analyst", "chat"],
+    )
+
     try:
         if not request.session_id:
             session = await session_service.create_session(
@@ -79,12 +94,34 @@ async def chat(request: ChatRequest):
                 for part in event.content.parts:
                     if part.text:
                         response_text += part.text
-        
+
         if not response_text:
             response_text = "The agent did not provide a text response."
-            
+
+        # Record the agent's full response as a generation span.
+        if trace:
+            trace.generation(
+                name="agent-response",
+                model=config.agent_settings.model,
+                input=[{"role": "user", "content": request.message}],
+                output=response_text,
+                metadata={"session_id": session_id, "user_id": request.user_id},
+            )
+            tracer.flush()
+
         return ChatResponse(response=response_text, session_id=session_id)
+
     except Exception as e:
+        # Record the error in the trace before re-raising.
+        if trace:
+            trace.generation(
+                name="agent-error",
+                model=config.agent_settings.model,
+                input=[{"role": "user", "content": request.message}],
+                output=str(e),
+                metadata={"error": True},
+            )
+            tracer.flush()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")

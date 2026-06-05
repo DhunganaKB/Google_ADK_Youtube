@@ -28,6 +28,10 @@ dependencies = [
     "google-cloud-firestore",
     "fastapi",
     "uvicorn",
+    # LangfuseTracer abstraction — installed directly from GitHub repo.
+    # The [langfuse] extra pulls in the langfuse SDK (>=3.0.0).
+    # Source: github.com/DhunganaKB/math-package-tutorial
+    "mathpackage[langfuse] @ git+https://github.com/DhunganaKB/math-package-tutorial.git",
 ]
 
 [build-system]

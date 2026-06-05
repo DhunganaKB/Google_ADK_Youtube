@@ -15,12 +15,16 @@ annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
+anthropic==0.105.2
+    # via mathpackage
 anyio==4.13.0
     # via
+    #   anthropic
     #   google-adk
     #   google-genai
     #   httpx
     #   mcp
+    #   openai
     #   sse-starlette
     #   starlette
 appnope==0.1.4 ; sys_platform == 'darwin'
@@ -37,7 +41,9 @@ attrs==26.1.0
 authlib==1.6.9
     # via google-adk
 backoff==2.2.1
-    # via agent-starter-pack
+    # via
+    #   agent-starter-pack
+    #   langfuse
 bandit==1.9.4
 basedpyright==1.39.0
 binaryornot==0.6.0
@@ -75,6 +81,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     #   deptry
     #   ipython
     #   pytest
+    #   tqdm
 comm==0.2.3
     # via ipykernel
 contourpy==1.3.3
@@ -105,9 +112,14 @@ deptry==0.25.1
 distlib==0.4.0
     # via virtualenv
 distro==1.9.0
-    # via google-genai
+    # via
+    #   anthropic
+    #   google-genai
+    #   openai
 docstring-parser==0.17.0
-    # via google-cloud-aiplatform
+    # via
+    #   anthropic
+    #   google-cloud-aiplatform
 executing==2.2.1
     # via stack-data
 fastapi==0.135.2
@@ -313,9 +325,12 @@ httplib2==0.31.2
     #   google-auth-httplib2
 httpx==0.28.1
     # via
+    #   anthropic
     #   google-adk
     #   google-genai
+    #   langfuse
     #   mcp
+    #   openai
 httpx-sse==0.4.3
     # via mcp
 identify==2.6.18
@@ -339,6 +354,10 @@ jedi==0.19.2
     # via ipython
 jinja2==3.1.6
     # via cookiecutter
+jiter==0.15.0
+    # via
+    #   anthropic
+    #   openai
 jsonschema==4.26.0
     # via
     #   google-adk
@@ -353,6 +372,8 @@ jupyter-core==5.9.1
     #   jupyter-client
 kiwisolver==1.5.0
     # via matplotlib
+langfuse==4.7.1
+    # via mathpackage
 license-expression==30.4.4
     # via cyclonedx-python-lib
 mako==1.3.10
@@ -363,6 +384,8 @@ markupsafe==3.0.3
     # via
     #   jinja2
     #   mako
+mathpackage @ git+https://github.com/DhunganaKB/math-package-tutorial.git@fbfd5f8a16f6b84ee768990e6a4644c3668fc9fe
+    # via youtube-analyst
 matplotlib==3.10.8
     # via youtube-analyst
 matplotlib-inline==0.2.1
@@ -394,12 +417,15 @@ numpy==2.4.4
     #   contourpy
     #   matplotlib
     #   pandas
+openai==2.41.0
+    # via mathpackage
 opentelemetry-api==1.38.0
     # via
     #   google-adk
     #   google-cloud-logging
     #   google-cloud-pubsub
     #   google-cloud-spanner
+    #   langfuse
     #   opentelemetry-exporter-gcp-logging
     #   opentelemetry-exporter-gcp-monitoring
     #   opentelemetry-exporter-gcp-trace
@@ -423,6 +449,7 @@ opentelemetry-exporter-otlp-proto-http==1.38.0
     # via
     #   google-adk
     #   google-cloud-aiplatform
+    #   langfuse
 opentelemetry-proto==1.38.0
     # via
     #   opentelemetry-exporter-otlp-proto-common
@@ -440,6 +467,7 @@ opentelemetry-sdk==1.38.0
     #   google-cloud-aiplatform
     #   google-cloud-pubsub
     #   google-cloud-spanner
+    #   langfuse
     #   opentelemetry-exporter-gcp-logging
     #   opentelemetry-exporter-gcp-monitoring
     #   opentelemetry-exporter-gcp-trace
@@ -457,6 +485,7 @@ packaging==26.0
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
     #   ipykernel
+    #   langfuse
     #   matplotlib
     #   pip-audit
     #   pip-requirements-parser
@@ -559,11 +588,14 @@ pycparser==3.0 ; (implementation_name != 'PyPy' and platform_python_implementati
     # via cffi
 pydantic==2.12.5
     # via
+    #   anthropic
     #   fastapi
     #   google-adk
     #   google-cloud-aiplatform
     #   google-genai
+    #   langfuse
     #   mcp
+    #   openai
     #   pydantic-settings
     #   youtube-analyst
 pydantic-core==2.41.5
@@ -659,7 +691,10 @@ ruff==0.15.8
 six==1.17.0
     # via python-dateutil
 sniffio==1.3.1
-    # via google-genai
+    # via
+    #   anthropic
+    #   google-genai
+    #   openai
 sortedcontainers==2.4.0
     # via cyclonedx-python-lib
 sqlalchemy==2.0.48
@@ -699,6 +734,8 @@ tornado==6.5.5
     # via
     #   ipykernel
     #   jupyter-client
+tqdm==4.67.3
+    # via openai
 traitlets==5.14.3
     # via
     #   ipykernel
@@ -709,12 +746,14 @@ traitlets==5.14.3
 typing-extensions==4.15.0
     # via
     #   alembic
+    #   anthropic
     #   fastapi
     #   google-adk
     #   google-cloud-aiplatform
     #   google-genai
     #   grpcio
     #   mcp
+    #   openai
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-resourcedetector-gcp
@@ -756,6 +795,8 @@ websockets==15.0.1
     # via
     #   google-adk
     #   google-genai
+wrapt==1.17.3
+    # via langfuse
 yarl==1.23.0
     # via aiohttp
 youtube-transcript-api==1.2.4

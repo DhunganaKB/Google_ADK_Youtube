@@ -65,7 +65,7 @@ jobs:
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --platform managed \
-            --service-account airbnb-rag-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
+            --service-account youtube-analyst-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
             --allow-unauthenticated \
             --memory 2Gi \
             --cpu 2 \
@@ -75,7 +75,11 @@ jobs:
             --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
             --set-env-vars "GOOGLE_CLOUD_LOCATION=global" \
             --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=1" \
-            --set-env-vars "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}"
+            --set-env-vars "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}" \
+            --set-env-vars "LANGFUSE_ENABLED=true" \
+            --set-secrets "LANGFUSE_PUBLIC_KEY=LANGFUSE_PUBLIC_KEY:latest" \
+            --set-secrets "LANGFUSE_SECRET_KEY=LANGFUSE_SECRET_KEY:latest" \
+            --set-secrets "LANGFUSE_HOST=LANGFUSE_HOST:latest"
 
       # ── 8. Print the live service URL ────────────────────────────────────────
       - name: Print service URL
