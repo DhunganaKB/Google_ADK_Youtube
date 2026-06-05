@@ -1736,7 +1736,7 @@ wheels = [
 [[package]]
 name = "mathpackage"
 version = "0.1.2"
-source = { git = "https://github.com/DhunganaKB/math-package-tutorial.git#fbfd5f8a16f6b84ee768990e6a4644c3668fc9fe" }
+source = { git = "https://github.com/DhunganaKB/math-package-tutorial.git#3a8ac0e0481bf16993b69d5b253cdbb523f62a55" }
 dependencies = [
     { name = "anthropic" },
     { name = "openai" },
