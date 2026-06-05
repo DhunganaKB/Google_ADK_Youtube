@@ -7,6 +7,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 ENV UV_NO_CACHE=1
 
+# Install git — required to install packages from GitHub URLs (e.g. mathpackage)
+# --no-install-recommends keeps the image small; cleanup removes apt cache
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 # ── Layer 1: install dependencies (cached until lock file changes) ────────────
 COPY pyproject.toml uv.lock uv.toml ./
 RUN uv sync --frozen --no-dev --no-install-project
