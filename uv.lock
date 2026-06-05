@@ -1736,7 +1736,7 @@ wheels = [
 [[package]]
 name = "mathpackage"
 version = "0.1.2"
-source = { git = "https://github.com/DhunganaKB/math-package-tutorial.git#3a8ac0e0481bf16993b69d5b253cdbb523f62a55" }
+source = { git = "https://github.com/DhunganaKB/math-package-tutorial.git?rev=main#3a8ac0e0481bf16993b69d5b253cdbb523f62a55" }
 dependencies = [
     { name = "anthropic" },
     { name = "openai" },
@@ -3330,7 +3330,6 @@ dependencies = [
     { name = "google-cloud-firestore" },
     { name = "google-cloud-storage" },
     { name = "google-genai" },
-    { name = "langfuse" },
     { name = "mathpackage", extra = ["langfuse"] },
     { name = "matplotlib" },
     { name = "pandas" },
@@ -3365,8 +3364,7 @@ requires-dist = [
     { name = "google-cloud-firestore" },
     { name = "google-cloud-storage" },
     { name = "google-genai", specifier = ">=0.2.0" },
-    { name = "langfuse", specifier = ">=3.0.0,<4.0.0" },
-    { name = "mathpackage", extras = ["langfuse"], git = "https://github.com/DhunganaKB/math-package-tutorial.git" },
+    { name = "mathpackage", extras = ["langfuse"], git = "https://github.com/DhunganaKB/math-package-tutorial.git?rev=main" },
     { name = "matplotlib" },
     { name = "pandas" },
     { name = "plotly" },

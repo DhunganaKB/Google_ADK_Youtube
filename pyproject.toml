@@ -28,12 +28,11 @@ dependencies = [
     "google-cloud-firestore",
     "fastapi",
     "uvicorn",
-    # LangfuseTracer abstraction — installed directly from GitHub repo.
+    # LangfuseTracer abstraction — always tracks the main branch of the source repo.
+    # Any update merged into main is picked up on the next `uv lock --upgrade-package mathpackage`.
     # Source: github.com/DhunganaKB/math-package-tutorial
-    "mathpackage[langfuse] @ git+https://github.com/DhunganaKB/math-package-tutorial.git",
-    # Pin langfuse to v3.x — mathpackage uses the stateful .trace() API
-    # which was removed in langfuse v4.0. v3.x is the last version with it.
-    "langfuse>=3.0.0,<4.0.0",
+    # langfuse version constraint is owned by mathpackage (langfuse>=3.0.0 in its extras).
+    "mathpackage[langfuse] @ git+https://github.com/DhunganaKB/math-package-tutorial.git@main",
 ]
 
 [build-system]
