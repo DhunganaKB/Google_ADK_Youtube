@@ -384,7 +384,7 @@ markupsafe==3.0.3
     # via
     #   jinja2
     #   mako
-mathpackage @ git+https://github.com/DhunganaKB/math-package-tutorial.git@fbfd5f8a16f6b84ee768990e6a4644c3668fc9fe
+mathpackage @ git+https://github.com/DhunganaKB/math-package-tutorial.git@main
     # via youtube-analyst
 matplotlib==3.10.8
     # via youtube-analyst

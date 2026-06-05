@@ -29,6 +29,7 @@ _archive/
 # IDE
 .vscode/
 .idea/
+*.html
 
 # OS
 .DS_Store
