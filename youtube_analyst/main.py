@@ -56,10 +56,10 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    # Open a Langfuse trace for this request.
-    # If tracing is disabled (missing keys or LANGFUSE_ENABLED=false),
-    # start_trace() returns None and all trace.* calls below are no-ops.
-    trace = tracer.start_trace(
+    # start_trace() is now a context manager (new mathpackage API).
+    # If tracing is disabled it is a no-op context manager — safe to use with
+    # `with` regardless. Inner spans use tracer.client to add generations.
+    with tracer.start_trace(
         name="chat-request",
         input={"message": request.message},
         metadata={
@@ -68,61 +68,62 @@ async def chat(request: ChatRequest):
             "app": config.app_name,
         },
         tags=["youtube-analyst", "chat"],
-    )
+    ):
+        try:
+            if not request.session_id:
+                session = await session_service.create_session(
+                    user_id=request.user_id, app_name=config.app_name
+                )
+                session_id = session.id
+            else:
+                session_id = request.session_id
 
-    try:
-        if not request.session_id:
-            session = await session_service.create_session(
-                user_id=request.user_id, app_name=config.app_name
+            message = types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=request.message)],
             )
-            session_id = session.id
-        else:
-            session_id = request.session_id
 
-        message = types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=request.message)],
-        )
+            response_text = ""
+            async for event in runner.run_async(
+                new_message=message,
+                user_id=request.user_id,
+                session_id=session_id,
+            ):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
 
-        response_text = ""
-        async for event in runner.run_async(
-            new_message=message,
-            user_id=request.user_id,
-            session_id=session_id,
-        ):
-            if event.content and event.content.parts:
-                for part in event.content.parts:
-                    if part.text:
-                        response_text += part.text
+            if not response_text:
+                response_text = "The agent did not provide a text response."
 
-        if not response_text:
-            response_text = "The agent did not provide a text response."
+            # Record the agent response as a generation span inside the trace.
+            if tracer.client:
+                with tracer.client.start_as_current_generation(
+                    name="agent-response",
+                    model=config.agent_settings.model,
+                    input=[{"role": "user", "content": request.message}],
+                    output=response_text,
+                    metadata={"session_id": session_id, "user_id": request.user_id},
+                ):
+                    pass
+                tracer.flush()
 
-        # Record the agent's full response as a generation span.
-        if trace:
-            trace.generation(
-                name="agent-response",
-                model=config.agent_settings.model,
-                input=[{"role": "user", "content": request.message}],
-                output=response_text,
-                metadata={"session_id": session_id, "user_id": request.user_id},
-            )
-            tracer.flush()
+            return ChatResponse(response=response_text, session_id=session_id)
 
-        return ChatResponse(response=response_text, session_id=session_id)
-
-    except Exception as e:
-        # Record the error in the trace before re-raising.
-        if trace:
-            trace.generation(
-                name="agent-error",
-                model=config.agent_settings.model,
-                input=[{"role": "user", "content": request.message}],
-                output=str(e),
-                metadata={"error": True},
-            )
-            tracer.flush()
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            # Record the error as a generation span before re-raising.
+            if tracer.client:
+                with tracer.client.start_as_current_generation(
+                    name="agent-error",
+                    model=config.agent_settings.model,
+                    input=[{"role": "user", "content": request.message}],
+                    output=str(e),
+                    metadata={"error": True},
+                ):
+                    pass
+                tracer.flush()
+            raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health():
