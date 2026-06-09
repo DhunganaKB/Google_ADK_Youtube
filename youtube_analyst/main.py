@@ -56,9 +56,17 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    # start_trace() is now a context manager (new mathpackage API).
-    # If tracing is disabled it is a no-op context manager — safe to use with
-    # `with` regardless. Inner spans use tracer.client to add generations.
+    """
+    Handle a chat request and trace every agent step to Langfuse.
+
+    Trace structure in Langfuse:
+        Trace: chat-request
+          ├── Span: tool:search_youtube       input: {query}  output: [{...}]
+          ├── Span: tool:get_video_details     input: {ids}    output: [{...}]
+          ├── Span: tool:calculate_engagement  input: {...}    output: {...}
+          ├── ...  (one span per tool call)
+          └── Generation: agent-response       output: "Here are the top 5..."
+    """
     with tracer.start_trace(
         name="chat-request",
         input={"message": request.message},
@@ -84,11 +92,34 @@ async def chat(request: ChatRequest):
             )
 
             response_text = ""
+
+            # ── Collect every agent step from the ADK event stream ─────────────
+            # tool_calls:  pending calls waiting for their response  {name -> args}
+            # tool_spans:  completed {name, input, output} ready to send to Langfuse
+            tool_calls: dict[str, list] = {}   # name → [args, ...] (list for repeated calls)
+            tool_spans: list[dict] = []
+
             async for event in runner.run_async(
                 new_message=message,
                 user_id=request.user_id,
                 session_id=session_id,
             ):
+                # ── Tool calls — Gemini decided to call a tool ─────────────────
+                for fc in event.get_function_calls():
+                    pending = tool_calls.setdefault(fc.name, [])
+                    pending.append(dict(fc.args or {}))
+
+                # ── Tool responses — tool executed and returned a result ────────
+                for fr in event.get_function_responses():
+                    pending = tool_calls.get(fr.name, [])
+                    args = pending.pop(0) if pending else {}
+                    tool_spans.append({
+                        "name": fr.name,
+                        "input": args,
+                        "output": fr.response,
+                    })
+
+                # ── Text — collect final answer ────────────────────────────────
                 if event.content and event.content.parts:
                     for part in event.content.parts:
                         if part.text:
@@ -97,22 +128,36 @@ async def chat(request: ChatRequest):
             if not response_text:
                 response_text = "The agent did not provide a text response."
 
-            # Record the agent response as a generation span inside the trace.
+            # ── Send all collected spans to Langfuse ───────────────────────────
             if tracer.client:
+                # One span per completed tool call
+                for span in tool_spans:
+                    with tracer.client.start_as_current_span(
+                        name=f"tool:{span['name']}",
+                        input=span["input"],
+                        output=span["output"],
+                    ):
+                        pass
+
+                # Final generation — the agent's text response to the user
                 with tracer.client.start_as_current_generation(
                     name="agent-response",
                     model=config.agent_settings.model,
                     input=[{"role": "user", "content": request.message}],
                     output=response_text,
-                    metadata={"session_id": session_id, "user_id": request.user_id},
+                    metadata={
+                        "session_id": session_id,
+                        "user_id": request.user_id,
+                        "tool_calls_count": len(tool_spans),
+                    },
                 ):
                     pass
+
                 tracer.flush()
 
             return ChatResponse(response=response_text, session_id=session_id)
 
         except Exception as e:
-            # Record the error as a generation span before re-raising.
             if tracer.client:
                 with tracer.client.start_as_current_generation(
                     name="agent-error",
