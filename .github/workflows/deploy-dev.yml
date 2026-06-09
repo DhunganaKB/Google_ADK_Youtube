@@ -1,0 +1,90 @@
+name: Build and Deploy Dev to Cloud Run
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'youtube_analyst/**'
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'uv.toml'
+
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+
+  # Different Cloud Run service
+  SERVICE_NAME: youtube-analyst-dev
+
+  # Same Artifact Registry repo, but separate image path
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/youtube-analyst/app-dev
+
+jobs:
+  build-and-deploy-dev:
+    name: Build, Push, Deploy Dev
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag ${{ env.IMAGE }}:${{ github.sha }} \
+            --tag ${{ env.IMAGE }}:dev-latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:dev-latest
+
+      - name: Deploy to Dev Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --platform managed \
+            --service-account youtube-analyst-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --cpu 2 \
+            --timeout 300 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
+            --set-env-vars "GOOGLE_CLOUD_LOCATION=global" \
+            --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=1" \
+            --set-env-vars "APP_ENV=dev" \
+            --set-env-vars "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}" \
+            --set-env-vars "LANGFUSE_ENABLED=true" \
+            --set-secrets "LANGFUSE_PUBLIC_KEY=LANGFUSE_PUBLIC_KEY:latest" \
+            --set-secrets "LANGFUSE_SECRET_KEY=LANGFUSE_SECRET_KEY:latest" \
+            --set-secrets "LANGFUSE_HOST=LANGFUSE_HOST:latest"
+
+      - name: Print Dev service URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format "value(status.url)")
+          echo "Dev service deployed at: $URL"
