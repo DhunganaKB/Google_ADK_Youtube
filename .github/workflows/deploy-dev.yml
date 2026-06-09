@@ -4,23 +4,12 @@ on:
   push:
     branches:
       - dev
-    paths:
-      - 'youtube_analyst/**'
-      - 'Dockerfile'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - 'uv.toml'
-
   workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
-
-  # Different Cloud Run service
   SERVICE_NAME: youtube-analyst-dev
-
-  # Same Artifact Registry repo, but separate image path
   IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/youtube-analyst/app-dev
 
 jobs:
